@@ -4,7 +4,7 @@ datum/objective
 	var/datum/mind/target = null		//If they are focused on a particular person.
 	var/target_amount = 0				//If they are focused on a particular number. Steal objectives have their own counter.
 	var/completed = 0					//currently only used for custom objectives.
-	var/dangerrating = 0				//How hard the objective is, essentially. Used for dishing out objectives and checking overall victory.
+
 
 datum/objective/New(var/text)
 	if(text)
@@ -46,7 +46,6 @@ datum/objective/proc/update_explanation_text()
 
 datum/objective/assassinate
 	var/target_role_type=0
-	dangerrating = 10
 
 datum/objective/assassinate/find_target_by_role(role, role_type=0)
 	target_role_type = role_type

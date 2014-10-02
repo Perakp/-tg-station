@@ -5,7 +5,7 @@
 	name = "AI malfunction"
 	config_tag = "malfunction"
 	antag_flag = BE_MALF
-	required_players = 20
+	required_players = 0
 	required_enemies = 1
 	recommended_enemies = 1
 	pre_setup_before_jobs = 1
@@ -48,7 +48,7 @@
 	if (malf_ai.len < required_enemies)
 		return 0
 	for(var/datum/mind/ai_mind in malf_ai)
-		ai_mind.assigned_role = "MODE" //So they aren't chosen for other jobs.
+		ai_mind.assigned_role = "AI" //So they aren't chosen for other jobs.
 		ai_mind.special_role = "malfunctioning AI"//So they actually have a special role/N
 		log_game("[ai_mind.key] (ckey) has been selected as a malf AI")
 	return 1
@@ -159,8 +159,8 @@
 	set category = "Malfunction"
 	set name = "System Override"
 	set desc = "Start the victory timer"
-	if (!istype(ticker.mode,/datum/game_mode/malfunction))
-		usr << "You cannot begin a takeover in this round type!"
+	if (!ticker.mode.allowMalfTakeover)
+		usr << "Safety protocols outside your power stop you from taking over!"
 		return
 	if (ticker.mode:malf_mode_declared)
 		usr << "You've already begun your takeover."

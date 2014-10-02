@@ -34,6 +34,7 @@ var/round_start_time = 0
 
 	var/triai = 0//Global holder for Triumvirate
 
+
 /datum/controller/gameticker/proc/pregame()
 
 	login_music = pickweight(list('sound/ambience/title2.ogg' = 49, 'sound/ambience/title1.ogg' = 49, 'sound/ambience/clown.ogg' = 2)) // choose title music!
@@ -59,45 +60,14 @@ var/round_start_time = 0
 				current_state = GAME_STATE_SETTING_UP
 	while (!setup())
 
+
 /datum/controller/gameticker/proc/setup()
 	//Create and announce mode
-	if(master_mode=="secret")
-		src.hide_mode = 1
-	var/list/datum/game_mode/runnable_modes
-	if((master_mode=="random") || (master_mode=="secret"))
-		runnable_modes = config.get_runnable_modes()
-
-		if((master_mode=="secret") && (secret_force_mode != "secret"))
-			var/datum/game_mode/smode = config.pick_mode(secret_force_mode)
-			if (!smode.can_start())
-				message_admins("\blue Unable to force secret [secret_force_mode]. [smode.required_players] players and [smode.required_enemies] eligible antagonists needed.", 1)
-			else
-				src.mode = smode
-
-		if(!src.mode)
-			if (runnable_modes.len==0)
-				current_state = GAME_STATE_PREGAME
-				world << "<B>Unable to choose playable game mode.</B> Reverting to pre-game lobby."
-				return 0
-			src.mode = pickweight(runnable_modes)
-
-	else
-		src.mode = config.pick_mode(master_mode)
-		if (!src.mode.can_start())
-			world << "<B>Unable to start [mode.name].</B> Not enough players, [mode.required_players] players and [mode.required_enemies] eligible antagonists needed. Reverting to pre-game lobby."
-			del(mode)
-			current_state = GAME_STATE_PREGAME
-			job_master.ResetOccupations()
-			return 0
-
-	//Configure mode and assign player to special mode stuff
-	var/can_continue = 0
-	if (src.mode.pre_setup_before_jobs)	can_continue = src.mode.pre_setup()
-	job_master.DivideOccupations() 				//Distribute jobs
-	if (!src.mode.pre_setup_before_jobs)	can_continue = src.mode.pre_setup()
+	create_gamemode()
+	var/antagonists_selected = mode.select_antagonists()
 
 	if(!Debug2)
-		if(!can_continue)
+		if(!antagonists_selected)
 			del(mode)
 			current_state = GAME_STATE_PREGAME
 			world << "<B>Error setting up [master_mode].</B> Reverting to pre-game lobby."
@@ -105,6 +75,8 @@ var/round_start_time = 0
 			return 0
 	else
 		world << "<span class='notice'>DEBUG: Bypassing prestart checks..."
+
+	job_master.DivideOccupations()
 
 	if(hide_mode)
 		var/list/modes = new
@@ -152,6 +124,33 @@ var/round_start_time = 0
 		spawn(3000)
 			statistic_cycle() // Polls population totals regularly and stores them in an SQL DB
 	return 1
+
+/datum/controller/gameticker/proc/create_gamemode()
+
+	if((master_mode=="random") || (master_mode=="secret"))
+		if((master_mode=="secret") && (secret_force_mode != "secret"))
+			var/datum/game_mode/smode = config.pick_mode(secret_force_mode)
+			if (!smode.can_start())
+				message_admins("\blue Unable to force secret [secret_force_mode]. [smode.required_players] players and [smode.required_enemies] eligible antagonists needed.", 1)
+			else
+				src.mode = smode
+
+		if(!src.mode)
+			runnable_modes = config.get_runnable_modes()
+			if (runnable_modes.len==0)
+				current_state = GAME_STATE_PREGAME
+				world << "<B>Unable to choose playable game mode.</B> Reverting to pre-game lobby."
+				return 0
+			src.mode = pickweight(runnable_modes)
+
+	else
+		src.mode = config.pick_mode(master_mode)
+		if (!src.mode.can_start())
+			world << "<B>Unable to start [mode.name].</B> Not enough players, [mode.required_players] players and [mode.required_enemies] eligible antagonists needed. Reverting to pre-game lobby."
+			del(mode)
+			current_state = GAME_STATE_PREGAME
+			job_master.ResetOccupations()
+			return 0
 
 /datum/controller/gameticker
 	//station_explosion used to be a variable for every mob's hud. Which was a waste!

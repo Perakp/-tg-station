@@ -14,25 +14,38 @@
 
 /datum/game_mode
 	var/name = "invalid"
-	var/config_tag = null
 	var/votable = 1
 	var/probability = 1
-	var/station_was_nuked = 0 //see nuclearbomb.dm and malfunction.dm
-	var/explosion_in_progress = 0 //sit back and relax
-	var/list/datum/mind/modePlayer = new
+	var/hide_mode = 1
+
+	//Antag selection
+	var/list/datum/mind/antagonists = list()	// List of antagonists
 	var/list/datum/mind/antag_candidates = list()	// List of possible starting antags goes here
-	var/list/restricted_jobs = list()	// Jobs it doesn't make sense to be.  I.E chaplain or AI cultist
-	var/list/protected_jobs = list()	// Jobs that can't be traitors because
+
+	//Requirements for selecting this gamemode
 	var/required_players = 0
 	var/required_enemies = 0
 	var/recommended_enemies = 0
-	var/pre_setup_before_jobs = 0
-	var/antag_flag = null //preferences flag such as BE_WIZARD that need to be turned on for players to be antag
-	var/datum/mind/sacrifice_target = null
 
+	//Intercept report wait limits
 	var/const/waittime_l = 600
 	var/const/waittime_h = 1800 // started at 1800
 
+	//Some gamemode specific stuff
+	var/shuttleCanBeCalled= 1 //Can the shuttle be called
+	var/allowMalfTakeover = 0 //Can the round end in malfunction takeover
+	var/station_was_nuked = 0 //see nuclearbomb.dm and malfunction.dm
+	var/explosion_in_progress = 0 //sit back and relax
+	var/datum/mind/sacrifice_target = null
+
+	//Tracking the numbers of specific antags
+	var/traitors=0
+	var/changelings=0
+	var/traitorlings=0
+	var/wizards=0
+	var/blobs=0
+	var/ninjas=0
+	var/nukeops=0
 
 /datum/game_mode/proc/announce() //to be calles when round starts
 	world << "<B>Notice</B>: [src] did not define announce()"
@@ -58,17 +71,25 @@
 		return 1
 
 
-///pre_setup()
+
 ///Attempts to select players for special roles the mode might have.
-/datum/game_mode/proc/pre_setup()
+/datum/game_mode/proc/select_antagonists()
 	return 1
 
 
 ///post_setup()
 ///Everyone should now be on the station and have their normal gear.  This is the place to give the special roles extra things
 /datum/game_mode/proc/post_setup(var/report=1)
+	for(var/datum/mind/antagonist in antagonists)
+		for(var/datum/antagonist/antagonist_datum in antagonist.antag_roles)
+			antagonist_datum.equip_antagonist(antagonist)
+
+
 	spawn (ROUNDSTART_LOGOUT_REPORT_TIME)
 		display_roundstart_logout_report()
+
+
+
 
 	feedback_set_details("round_start","[time2text(world.realtime)]")
 	if(ticker && ticker.mode)
@@ -81,6 +102,11 @@
 			send_intercept(0)
 	start_state = new /datum/station_state()
 	start_state.count()
+
+
+
+
+
 	return 1
 
 ///make_antag_chance()
@@ -194,10 +220,10 @@
 
 	var/datum/intercept_text/i_text = new /datum/intercept_text
 	for(var/A in possible_modes)
-		if(modePlayer.len == 0)
+		if(antagonists.len == 0)
 			intercepttext += i_text.build(A)
 		else
-			intercepttext += i_text.build(A, pick(modePlayer))
+			intercepttext += i_text.build(A, pick(antagonists))
 
 	print_command_report(intercepttext,"Centcom Status Summary")
 	priority_announce("Summary downloaded and printed out at all communications consoles.", "Enemy communication intercept. Security Level Elevated.", 'sound/AI/intercept.ogg')
@@ -237,48 +263,12 @@
 				if(!jobban_isbanned(player, "Syndicate") && !jobban_isbanned(player, roletext)) //Nodrak/Carn: Antag Job-bans
 					candidates += player.mind				// Get a list of all the people who want to be the antagonist for this round
 
-	if(restricted_jobs)
-		for(var/datum/mind/player in candidates)
-			for(var/job in restricted_jobs)					// Remove people who want to be antagonist but have a job already that precludes it
-				if(player.assigned_role == job)
-					candidates -= player
-
 	if(candidates.len < recommended_enemies)
 		for(var/mob/new_player/player in players)
 			if(player.client && player.ready)
 				if(!(player.client.prefs.be_special & role)) // We don't have enough people who want to be antagonist, make a seperate list of people who don't want to be one
 					if(!jobban_isbanned(player, "Syndicate") && !jobban_isbanned(player, roletext)) //Nodrak/Carn: Antag Job-bans
 						drafted += player.mind
-
-	if(restricted_jobs)
-		for(var/datum/mind/player in drafted)				// Remove people who can't be an antagonist
-			for(var/job in restricted_jobs)
-				if(player.assigned_role == job)
-					drafted -= player
-
-	drafted = shuffle(drafted) // Will hopefully increase randomness, Donkie
-
-	while(candidates.len < recommended_enemies)				// Pick randomlly just the number of people we need and add them to our list of candidates
-		if(drafted.len > 0)
-			applicant = pick(drafted)
-			if(applicant)
-				candidates += applicant
-				drafted.Remove(applicant)
-
-		else												// Not enough scrubs, ABORT ABORT ABORT
-			break
-/*
-	if(candidates.len < recommended_enemies && override_jobbans) //If we still don't have enough people, we're going to start drafting banned people.
-		for(var/mob/new_player/player in players)
-			if (player.client && player.ready)
-				if(jobban_isbanned(player, "Syndicate") || jobban_isbanned(player, roletext)) //Nodrak/Carn: Antag Job-bans
-					drafted += player.mind
-*/
-	if(restricted_jobs)
-		for(var/datum/mind/player in drafted)				// Remove people who can't be an antagonist
-			for(var/job in restricted_jobs)
-				if(player.assigned_role == job)
-					drafted -= player
 
 	drafted = shuffle(drafted) // Will hopefully increase randomness, Donkie
 
@@ -296,12 +286,6 @@
 							//			recommended_enemies if the number of people with that role set to yes is less than recomended_enemies,
 							//			Less if there are not enough valid players in the game entirely to make recommended_enemies.
 
-/*
-/datum/game_mode/proc/check_player_role_pref(var/role, var/mob/new_player/player)
-	if(player.preferences.be_special & role)
-		return 1
-	return 0
-*/
 
 /datum/game_mode/proc/num_players()
 	. = 0
@@ -380,24 +364,7 @@ proc/display_roundstart_logout_report()
 						msg += "<b>[L.name]</b> ([ckey(D.mind.key)]), the [L.job] (<span class='userdanger'>Ghosted</span>)\n"
 						continue //Ghosted while alive
 
-
-
 	for(var/mob/M in mob_list)
 		if(M.client && M.client.holder)
 			M << msg
 
-/datum/game_mode/proc/printplayer(var/datum/mind/ply)
-	var/role = "\improper[ply.assigned_role]"
-	var/text = "<br><b>[ply.name]</b>(<b>[ply.key]</b>) as \a <b>[role]</b> ("
-	if(ply.current)
-		if(ply.current.stat == DEAD)
-			text += "died"
-		else
-			text += "survived"
-		if(ply.current.real_name != ply.name)
-			text += " as <b>[ply.current.real_name]</b>"
-	else
-		text += "body destroyed"
-	text += ")"
-
-	return text

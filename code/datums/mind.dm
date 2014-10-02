@@ -42,7 +42,8 @@
 
 	var/datum/job/assigned_job
 
-	var/list/datum/objective/objectives = list()
+	var/list/datum/antagonist/antag_roles = list() // list of antagonist roles
+	var/list/datum/objective/objectives = list() // common objectives list
 	var/list/datum/objective/special_verbs = list()
 
 	var/has_been_rev = 0//Tracks if this mind has been a rev or not

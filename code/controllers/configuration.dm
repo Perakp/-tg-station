@@ -141,14 +141,12 @@
 		// their information, but it is the only way (at least that I know of).
 		var/datum/game_mode/M = new T()
 
-		if(M.config_tag)
-			if(!(M.config_tag in modes))		// ensure each mode is added only once
-				diary << "Adding game mode [M.name] ([M.config_tag]) to configuration."
-				modes += M.config_tag
-				mode_names[M.config_tag] = M.name
-				probabilities[M.config_tag] = M.probability
-				if(M.votable)
-					votable_modes += M.config_tag
+		if(M.name && !(M.name in modes))
+			diary << "Adding game mode [M.name] to configuration."
+			modes += M.name
+			probabilities[M.name] = M.probability
+			if(M.votable)
+				votable_modes += M.name
 		del(M)
 	votable_modes += "secret"
 
