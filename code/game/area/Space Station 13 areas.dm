@@ -380,9 +380,17 @@ proc/process_ghost_teleport_locs()
 
 /area/tdome
 	name = "\improper Thunderdome"
-	icon_state = "thunder"
+	icon_state = "yellow"
 	requires_power = 0
 	has_gravity = 1
+
+/area/tdome/arena
+	name = "\improper Thunderdome Arena"
+	icon_state = "thunder"
+
+/area/tdome/arena_source
+	name = "\improper Thunderdome Arena Template"
+	icon_state = "thunder"
 
 /area/tdome/tdome1
 	name = "\improper Thunderdome (Team 1)"
@@ -390,7 +398,7 @@ proc/process_ghost_teleport_locs()
 
 /area/tdome/tdome2
 	name = "\improper Thunderdome (Team 2)"
-	icon_state = "yellow"
+	icon_state = "green"
 
 /area/tdome/tdomeadmin
 	name = "\improper Thunderdome (Admin.)"
@@ -551,6 +559,8 @@ proc/process_ghost_teleport_locs()
  	icon_state = "atmos"
 
 //Maintenance
+/area/maintenance
+	ambientsounds = list('sound/ambience/ambimaint1.ogg', 'sound/ambience/ambimaint2.ogg', 'sound/ambience/ambimaint3.ogg', 'sound/ambience/ambimaint4.ogg', 'sound/ambience/ambimaint5.ogg')
 
 /area/maintenance/atmos_control
 	name = "Atmospherics Maintenance"
@@ -1048,6 +1058,10 @@ proc/process_ghost_teleport_locs()
 	name = "\improper Firing Range"
 	icon_state = "firingrange"
 
+/area/security/transfer
+	name = "\improper Transfer Centre"
+	icon_state = "armory"
+
 /*
 	New()
 		..()
@@ -1381,6 +1395,10 @@ proc/process_ghost_teleport_locs()
 	name = "Emergency Storage"
 	icon_state = "storage"
 
+/area/ai_monitored/storage/satellite
+	name = "\improper AI Satellite Maint"
+	icon_state = "storage"
+
 
 /area/turret_protected/
 	ambientsounds = list('sound/ambience/ambimalf.ogg')
@@ -1403,7 +1421,7 @@ proc/process_ghost_teleport_locs()
 
 /area/aisat
 	name = "\improper AI Satellite Exterior"
-	icon_state = "storage"
+	icon_state = "yellow"
 
 /area/turret_protected/aisat_interior
 	name = "\improper AI Satellite Antechamber"

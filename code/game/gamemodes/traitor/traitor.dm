@@ -14,9 +14,8 @@
 	required_enemies = 1
 	recommended_enemies = 4
 
-	var/traitorcap = 4 //hard limit on traitors if scaling is turned off
-	var/scale_modifier = 1 // Used for gamemodes, that are a child of traitor, that need more than the usual.
-
+	var/traitors_possible = 4 //hard limit on traitors if scaling is turned off
+	var/num_modifier = 0 // Used for gamemodes, that are a child of traitor, that need more than the usual.
 
 /datum/game_mode/traitor/announce()
 	world << "<B>The current game mode is - Traitor!</B>"
@@ -32,6 +31,7 @@
 
 	if(config.traitor_scaling_coeff)
 		target_num_traitors = max(1, min( round(num_players()/(config.traitor_scaling_coeff*scale_modifier*2))+2, round(num_players()/(config.traitor_scaling_coeff*scale_modifier)) ))
+
 	else
 		target_num_traitors = max(1, min(num_players(), traitorcap))
 

@@ -73,6 +73,7 @@
 		var/datum/mind/cultist = pick(antag_candidates)
 		antag_candidates -= cultist
 		cult += cultist
+		cultist.special_role = "Cultist"
 		log_game("[cultist.key] (ckey) has been selected as a cultist")
 
 	return (cult.len>=required_enemies)
@@ -103,7 +104,6 @@
 		update_cult_icons_added(cult_mind)
 		cult_mind.current << "<span class='notice'>You are a member of the cult!</span>"
 		memorize_cult_objectives(cult_mind)
-		cult_mind.special_role = "Cultist"
 	..()
 
 

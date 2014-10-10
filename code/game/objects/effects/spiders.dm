@@ -76,6 +76,7 @@
 	desc = "They seem to pulse slightly with an inner life"
 	icon_state = "eggs"
 	var/amount_grown = 0
+	var/player_spiders = 0
 
 /obj/effect/spider/eggcluster/New()
 	pixel_x = rand(3,-3)
@@ -87,7 +88,9 @@
 	if(amount_grown >= 100)
 		var/num = rand(3,12)
 		for(var/i=0, i<num, i++)
-			new /obj/effect/spider/spiderling(src.loc)
+			var/obj/effect/spider/spiderling/S = new /obj/effect/spider/spiderling(src.loc)
+			if(player_spiders)
+				S.player_spiders = 1
 		qdel(src)
 
 /obj/effect/spider/spiderling
@@ -101,6 +104,7 @@
 	var/grow_as = null
 	var/obj/machinery/atmospherics/unary/vent_pump/entry_vent
 	var/travelling_in_vent = 0
+	var/player_spiders = 0
 
 /obj/effect/spider/spiderling/New()
 	pixel_x = rand(6,-6)
@@ -137,7 +141,8 @@
 					return
 				var/obj/machinery/atmospherics/unary/vent_pump/exit_vent = pick(vents)
 				if(prob(50))
-					src.visible_message("<B>[src] scrambles into the ventillation ducts!</B>")
+					visible_message("<B>[src] scrambles into the ventillation ducts!</B>", \
+									"<span class='notice'>You hear something squeezing through the ventilation ducts.</span>")
 
 				spawn(rand(20,60))
 					loc = exit_vent
@@ -150,7 +155,7 @@
 							return
 
 						if(prob(50))
-							src.visible_message("<span class='notice'>You hear something squeezing through the ventilation ducts.</span>",2)
+							audible_message("<span class='notice'>You hear something squeezing through the ventilation ducts.</span>")
 						sleep(travel_time)
 
 						if(!exit_vent || exit_vent.welded)
@@ -185,7 +190,14 @@
 		if(amount_grown >= 100)
 			if(!grow_as)
 				grow_as = pick(typesof(/mob/living/simple_animal/hostile/giant_spider))
-			new grow_as(src.loc)
+			var/mob/living/simple_animal/hostile/giant_spider/S = new grow_as(src.loc)
+			if(player_spiders)
+				var/list/candidates = get_candidates(BE_ALIEN, ALIEN_AFK_BRACKET)
+				var/client/C = null
+
+				if(candidates.len)
+					C = pick(candidates)
+					S.key = C.key
 			qdel(src)
 
 /obj/effect/spider/cocoon

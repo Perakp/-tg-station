@@ -1,8 +1,3 @@
-var/GLOBAL_RADIO_TYPE = 1 // radio type to use
-	// 0 = old radios
-	// 1 = new radios (subspace technology)
-
-
 /obj/item/device/radio
 	icon = 'icons/obj/radio.dmi'
 	name = "station bounced radio"
@@ -448,16 +443,12 @@ var/GLOBAL_RADIO_TYPE = 1 // radio type to use
 		return get_hearers_in_view(canhear_range, src)
 
 
-/obj/item/device/radio/examine()
-	set src in view()
-
+/obj/item/device/radio/examine(mob/user)
 	..()
-	if ((in_range(src, usr) || loc == usr))
-		if (b_stat)
-			usr.show_message("<span class='notice'>\the [src] can be attached and modified!</span>")
-		else
-			usr.show_message("<span class='notice'>\the [src] can not be modified or attached!</span>")
-	return
+	if (b_stat)
+		user << "<span class='notice'>[name] can be attached and modified.</span>"
+	else
+		user << "<span class='notice'>[name] can not be modified or attached.</span>"
 
 /obj/item/device/radio/attackby(obj/item/weapon/W as obj, mob/user as mob)
 	..()
@@ -610,8 +601,6 @@ var/GLOBAL_RADIO_TYPE = 1 // radio type to use
 	user << browse(dat, "window=radio")
 	onclose(user, "radio")
 	return
-
-
 
 /obj/item/device/radio/off	// Station bounced radios, their only difference is spawning with the speakers off, this was made to help the lag.
 	listening = 0			// And it's nice to have a subtype too for future features.

@@ -23,7 +23,7 @@
 /datum/table_recipe/IED
 	name = "IED"
 	result_path = /obj/item/weapon/grenade/iedcasing
-	reqs = list(/obj/item/weapon/handcuffs/cable = 1,
+	reqs = list(/obj/item/weapon/restraints/handcuffs/cable = 1,
 				/obj/item/stack/cable_coil = 1,
 				/obj/item/device/assembly/igniter = 1,
 				/obj/item/weapon/reagent_containers/food/drinks/soda_cans = 1,
@@ -33,7 +33,7 @@
 /datum/table_recipe/stunprod
 	name = "Stunprod"
 	result_path = /obj/item/weapon/melee/baton/cattleprod
-	reqs = list(/obj/item/weapon/handcuffs/cable = 1,
+	reqs = list(/obj/item/weapon/restraints/handcuffs/cable = 1,
 				/obj/item/stack/rods = 1,
 				/obj/item/weapon/wirecutters = 1,
 				/obj/item/weapon/stock_parts/cell = 1)
@@ -697,6 +697,24 @@ Destroy type values:
 					src.status = 2
 			return
 	..()
+
+/obj/structure/table/MouseDrop_T(mob/target, mob/living/carbon/human/user)
+	if(istype(target) && user == target && istype(user))
+		if(user.canmove)
+			climb_table(user)
+
+/obj/structure/table/proc/climb_table(mob/user)
+	src.add_fingerprint(user)
+	user.visible_message("<span class='warning'>[user] starts climbing onto [src].</span>", \
+								"<span class='notice'>[user] starts climbing onto [src].</span>")
+	if(do_mob(user, user, 20))
+		user.pass_flags += PASSTABLE
+		step(user,get_dir(user,src.loc))
+		user.pass_flags -= PASSTABLE
+		user.visible_message("<span class='warning'>[user] climbs onto [src].</span>", \
+									"<span class='notice'>[user] climbs onto [src].</span>")
+		add_logs(user, src, "climbed onto")
+		user.Stun(2)
 
 /*
  * Racks
