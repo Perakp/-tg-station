@@ -34,7 +34,10 @@ var/round_start_time = 0
 
 	var/triai = 0//Global holder for Triumvirate
 
+	var/list/runnable_modes = list()
 
+
+// Lobby: Play relaxing music, wait for the round to start
 /datum/controller/gameticker/proc/pregame()
 
 	login_music = pickweight(list('sound/ambience/title2.ogg' = 49, 'sound/ambience/title1.ogg' = 49, 'sound/ambience/clown.ogg' = 2)) // choose title music!
@@ -42,7 +45,6 @@ var/round_start_time = 0
 		login_music = 'sound/ambience/clown.ogg'
 	for(var/client/C in clients)
 		C.playtitlemusic()
-
 	do
 		if(config)
 			pregame_timeleft = config.lobby_countdown
@@ -61,9 +63,14 @@ var/round_start_time = 0
 	while (!setup())
 
 
+
 /datum/controller/gameticker/proc/setup()
-	//Create and announce mode
-	create_gamemode()
+
+	runnable_modes = config.get_runnable_modes()
+	// Try to set up the game mode. Return to lobby if no game mode can be started.
+	if(!create_gamemode())
+		return 0
+	// Try to choose antagonists for the selected mode.
 	var/antagonists_selected = mode.select_antagonists()
 
 	if(!Debug2)
@@ -77,17 +84,7 @@ var/round_start_time = 0
 		world << "<span class='notice'>DEBUG: Bypassing prestart checks..."
 
 	job_master.DivideOccupations()
-
-	if(hide_mode)
-		var/list/modes = new
-		for (var/datum/game_mode/M in runnable_modes)
-			modes+=M.name
-		modes = sortList(modes)
-		world << "<B>The current game mode is - Secret!</B>"
-		world << "<B>Possibilities:</B> [english_list(modes)]"
-	else
-		src.mode.announce()
-
+	announce_mode()
 	round_start_time = world.time
 
 	supply_shuttle.process() 		//Start the supply shuttle regenerating points
@@ -125,6 +122,20 @@ var/round_start_time = 0
 			statistic_cycle() // Polls population totals regularly and stores them in an SQL DB
 	return 1
 
+
+/datum/controller/gameticker/proc/announce_mode()
+	if(hide_mode)
+		var/list/modes = list()
+		for (var/datum/game_mode/M in runnable_modes)
+			modes+=M.name
+		modes = sortList(modes)
+		world << "<B>The current game mode is - Secret!</B>"
+		world << "<B>Possibilities:</B> [english_list(modes)]"
+	else
+		mode.announce()
+
+// Creates the game mode from current settings, considering the requirements to start the game mode
+// TODO: clean this up. It shouldn't look like this.
 /datum/controller/gameticker/proc/create_gamemode()
 
 	if((master_mode=="random") || (master_mode=="secret"))
@@ -136,7 +147,6 @@ var/round_start_time = 0
 				src.mode = smode
 
 		if(!src.mode)
-			runnable_modes = config.get_runnable_modes()
 			if (runnable_modes.len==0)
 				current_state = GAME_STATE_PREGAME
 				world << "<B>Unable to choose playable game mode.</B> Reverting to pre-game lobby."
@@ -149,106 +159,8 @@ var/round_start_time = 0
 			world << "<B>Unable to start [mode.name].</B> Not enough players, [mode.required_players] players and [mode.required_enemies] eligible antagonists needed. Reverting to pre-game lobby."
 			del(mode)
 			current_state = GAME_STATE_PREGAME
-			job_master.ResetOccupations()
 			return 0
 
-/datum/controller/gameticker
-	//station_explosion used to be a variable for every mob's hud. Which was a waste!
-	//Now we have a general cinematic centrally held within the gameticker....far more efficient!
-	var/obj/screen/cinematic = null
-
-	//Plus it provides an easy way to make cinematics for other events. Just use this as a template
-/datum/controller/gameticker/proc/station_explosion_cinematic(var/station_missed=0, var/override = null)
-	if( cinematic )	return	//already a cinematic in progress!
-	auto_toggle_ooc(1) // Turn it on
-	//initialise our cinematic screen object
-	cinematic = new(src)
-	cinematic.icon = 'icons/effects/station_explosion.dmi'
-	cinematic.icon_state = "station_intact"
-	cinematic.layer = 20
-	cinematic.mouse_opacity = 0
-	cinematic.screen_loc = "1,0"
-
-	var/obj/structure/stool/bed/temp_buckle = new(src)
-	if(station_missed)
-		for(var/mob/M in mob_list)
-			M.buckled = temp_buckle				//buckles the mob so it can't do anything
-			if(M.client)
-				M.client.screen += cinematic	//show every client the cinematic
-	else	//nuke kills everyone on z-level 1 to prevent "hurr-durr I survived"
-		for(var/mob/M in mob_list)
-			M.buckled = temp_buckle
-			if(M.client)
-				M.client.screen += cinematic
-			if(M.stat != DEAD)
-				var/turf/T = get_turf(M)
-				if(T && T.z==1)
-					M.death(0) //no mercy
-
-	//Now animate the cinematic
-	switch(station_missed)
-		if(1)	//nuke was nearby but (mostly) missed
-			if( mode && !override )
-				override = mode.name
-			switch( override )
-				if("nuclear emergency") //Nuke wasn't on station when it blew up
-					flick("intro_nuke",cinematic)
-					sleep(35)
-					world << sound('sound/effects/explosionfar.ogg')
-					flick("station_intact_fade_red",cinematic)
-					cinematic.icon_state = "summary_nukefail"
-				if("fake") //The round isn't over, we're just freaking people out for fun
-					flick("intro_nuke",cinematic)
-					sleep(35)
-					world << sound('sound/items/bikehorn.ogg')
-					flick("summary_selfdes",cinematic)
-				else
-					flick("intro_nuke",cinematic)
-					sleep(35)
-					world << sound('sound/effects/explosionfar.ogg')
-					//flick("end",cinematic)
-
-
-		if(2)	//nuke was nowhere nearby	//TODO: a really distant explosion animation
-			sleep(50)
-			world << sound('sound/effects/explosionfar.ogg')
-
-
-		else	//station was destroyed
-			if( mode && !override )
-				override = mode.name
-			switch( override )
-				if("nuclear emergency") //Nuke Ops successfully bombed the station
-					flick("intro_nuke",cinematic)
-					sleep(35)
-					flick("station_explode_fade_red",cinematic)
-					world << sound('sound/effects/explosionfar.ogg')
-					cinematic.icon_state = "summary_nukewin"
-				if("AI malfunction") //Malf (screen,explosion,summary)
-					flick("intro_malf",cinematic)
-					sleep(76)
-					flick("station_explode_fade_red",cinematic)
-					world << sound('sound/effects/explosionfar.ogg')
-					cinematic.icon_state = "summary_malf"
-				if("blob") //Station nuked (nuke,explosion,summary)
-					flick("intro_nuke",cinematic)
-					sleep(35)
-					flick("station_explode_fade_red",cinematic)
-					world << sound('sound/effects/explosionfar.ogg')
-					cinematic.icon_state = "summary_selfdes"
-				else //Station nuked (nuke,explosion,summary)
-					flick("intro_nuke",cinematic)
-					sleep(35)
-					flick("station_explode_fade_red", cinematic)
-					world << sound('sound/effects/explosionfar.ogg')
-					cinematic.icon_state = "summary_selfdes"
-	//If its actually the end of the round, wait for it to end.
-	//Otherwise if its a verb it will continue on afterwards.
-	sleep(300)
-
-	if(cinematic)	qdel(cinematic)		//end the cinematic
-	if(temp_buckle)	qdel(temp_buckle)	//release everybody
-	return
 
 
 /datum/controller/gameticker/proc/create_characters()
@@ -322,10 +234,7 @@ var/round_start_time = 0
 
 	return 1
 
-/datum/controller/gameticker/proc/getfactionbyname(var/name)
-	for(var/datum/faction/F in factions)
-		if(F.name == name)
-			return F
+
 
 
 /datum/controller/gameticker/proc/declare_completion()
@@ -394,11 +303,6 @@ var/round_start_time = 0
 				robo.laws.show_laws(world)
 
 	mode.declare_completion()//To declare normal completion.
-
-	//calls auto_declare_completion_* for all modes
-	for(var/handler in typesof(/datum/game_mode/proc))
-		if (findtext("[handler]","auto_declare_completion_"))
-			call(mode, handler)()
 
 	//Print a list of antagonists to the server log
 	var/list/total_antagonists = list()

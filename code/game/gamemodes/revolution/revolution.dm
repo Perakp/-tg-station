@@ -491,3 +491,25 @@
 		text += "<br>"
 
 		world << text
+
+
+///////////////////////////////////
+//Keeps track of all living heads//
+///////////////////////////////////
+/datum/game_mode/proc/get_living_heads()
+	var/list/heads = list()
+	for(var/mob/living/carbon/human/player in mob_list)
+		if(player.stat!=2 && player.mind && (player.mind.assigned_role in command_positions))
+			heads += player.mind
+	return heads
+
+
+////////////////////////////
+//Keeps track of all heads//
+////////////////////////////
+/datum/game_mode/proc/get_all_heads()
+	var/list/heads = list()
+	for(var/mob/player in mob_list)
+		if(player.mind && (player.mind.assigned_role in command_positions))
+			heads += player.mind
+	return heads

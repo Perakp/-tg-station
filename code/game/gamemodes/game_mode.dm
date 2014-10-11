@@ -1,13 +1,12 @@
-//This file was auto-corrected by findeclaration.exe on 25.5.2012 20:42:31
-
 /*
- * GAMEMODES (by Rastaf0)
+ * GAMEMODES
  *
  * In the new mode system all special roles are fully supported.
  * You can have proper wizards/traitors/changelings/cultists during any mode.
- * Only two things really depends on gamemode:
- * 1. Starting roles, equipment and preparations
- * 2. Conditions of finishing the round.
+ * Only few things really depends on gamemode:
+ * 1. Conditions of starting the round. (#TODO: Freeform round start conditions)
+ * 2. Antagonists that are spawned at the beginning of round (Can always spawn more antagonists during round)
+ * 3. Conditions of ending the round (#TODO: round end conditions can change during round)
  *
  */
 
@@ -16,14 +15,13 @@
 	var/name = "invalid"
 	var/votable = 1
 	var/probability = 1
-	var/hide_mode = 1
 
 	//Antag selection
 	var/list/datum/mind/antagonists = list()	// List of antagonists
 	var/list/datum/mind/antag_candidates = list()	// List of possible starting antags goes here
 
 	//Requirements for selecting this gamemode
-	var/required_players = 0
+	var/required_players = 1 // you can always play alone, but don't start a game with no players
 	var/required_enemies = 0
 	var/recommended_enemies = 0
 
@@ -38,7 +36,7 @@
 	var/explosion_in_progress = 0 //sit back and relax
 	var/datum/mind/sacrifice_target = null
 
-	//Tracking the numbers of specific antags
+	// Tracking the numbers of specific antags.
 	var/traitors=0
 	var/changelings=0
 	var/traitorlings=0
@@ -46,6 +44,8 @@
 	var/blobs=0
 	var/ninjas=0
 	var/nukeops=0
+	var/revolutionaries=0
+	var/cultists=0
 
 /datum/game_mode/proc/announce() //to be calles when round starts
 	world << "<B>Notice</B>: [src] did not define announce()"
@@ -77,19 +77,19 @@
 	return 1
 
 
-///post_setup()
-///Everyone should now be on the station and have their normal gear.  This is the place to give the special roles extra things
-/datum/game_mode/proc/post_setup(var/report=1)
+// post_setup()
+// Everyone should now be on the station and have their normal gear.
+// This is the place to give the special roles extra things
+/datum/game_mode/proc/post_setup(var/send_intercept=1)
 	for(var/datum/mind/antagonist in antagonists)
 		for(var/datum/antagonist/antagonist_datum in antagonist.antag_roles)
+			antagonist_datum.create_objectives(antagonist)
 			antagonist_datum.equip_antagonist(antagonist)
+			antagonist_datum.greet_antagonist(antagonist)
 
 
 	spawn (ROUNDSTART_LOGOUT_REPORT_TIME)
 		display_roundstart_logout_report()
-
-
-
 
 	feedback_set_details("round_start","[time2text(world.realtime)]")
 	if(ticker && ticker.mode)
@@ -97,15 +97,11 @@
 	if(revdata.revision)
 		feedback_set_details("revision","[revdata.revision]")
 	feedback_set_details("server_ip","[world.internet_address]:[world.port]")
-	if(report)
+	if(send_intercept)
 		spawn (rand(waittime_l, waittime_h))
 			send_intercept(0)
 	start_state = new /datum/station_state()
 	start_state.count()
-
-
-
-
 
 	return 1
 
@@ -125,8 +121,24 @@
 		return 1
 	return 0
 
+/datum/mind/proc/declare_antagonist_completion()
+	#TODO
+	return 0
+
 
 /datum/game_mode/proc/declare_completion()
+	for(var/datum/mind/antagonist in antagonists)
+		antagonist.declare_antagonist_completion()
+	if(revolutionaries.len)
+		declare_revolution()
+	if(cultists.len)
+		declare_cult()
+	if(nukeops)
+		declare_ops()
+	if(gang)
+		declare_gang()
+
+
 	var/clients = 0
 	var/surviving_humans = 0
 	var/surviving_total = 0
@@ -197,7 +209,8 @@
 	return 0
 
 
-/datum/game_mode/proc/check_win() //universal trigger to be called at mob death, nuke explosion, etc. To be called from everywhere.
+//universal trigger to be called at mob death, nuke explosion, etc. To be called from everywhere.
+/datum/game_mode/proc/check_win()
 	return 0
 
 
@@ -231,10 +244,13 @@
 		set_security_level(SEC_LEVEL_BLUE)
 
 
+
+// Returns a list of people who had the antagonist role set to yes in their preferences,
+// could be more or less than recommended_enemies.
 /datum/game_mode/proc/get_players_for_role(var/role)
-	var/list/players = list()
-	var/list/candidates = list()
-	var/list/drafted = list()
+	var/list/players = list() // List of players that are ready
+	var/list/candidates = list() // List of players ready for the role
+	var/list/drafted = list() // List of players drafted for the role
 	var/datum/mind/applicant = null
 
 	var/roletext
@@ -248,44 +264,31 @@
 		if(BE_CULTIST)		roletext="cultist"
 		if(BE_MONKEY)		roletext="monkey"
 
-
-	// Ultimate randomizing code right here
 	for(var/mob/new_player/player in player_list)
 		if(player.client && player.ready)
-			players += player
+			if(!jobban_isbanned(player, "Syndicate") && !jobban_isbanned(player, roletext))
+				players += player
 
-	// Shuffling, the players list is now ping-independent!!!
-	// Goodbye antag dante
 	players = shuffle(players)
 
 	for(var/mob/new_player/player in players)
-		if(player.client && player.ready)
-			if(player.client.prefs.be_special & role)
-				if(!jobban_isbanned(player, "Syndicate") && !jobban_isbanned(player, roletext)) //Nodrak/Carn: Antag Job-bans
-					candidates += player.mind				// Get a list of all the people who want to be the antagonist for this round
+		if(player.client.prefs.be_special & role)
+			candidates += player.mind
 
 	if(candidates.len < recommended_enemies)
-		for(var/mob/new_player/player in players)
-			if(player.client && player.ready)
-				if(!(player.client.prefs.be_special & role)) // We don't have enough people who want to be antagonist, make a seperate list of people who don't want to be one
-					if(!jobban_isbanned(player, "Syndicate") && !jobban_isbanned(player, roletext)) //Nodrak/Carn: Antag Job-bans
-						drafted += player.mind
+		drafted = players - candidates
 
-	drafted = shuffle(drafted) // Will hopefully increase randomness, Donkie
-
-	while(candidates.len < recommended_enemies)				// Pick randomlly just the number of people we need and add them to our list of candidates
+	while(candidates.len < recommended_enemies)
 		if(drafted.len > 0)
 			applicant = pick(drafted)
 			if(applicant)
 				candidates += applicant
 				drafted.Remove(applicant)
-
-		else												// Not enough scrubs, ABORT ABORT ABORT
+		else		// Not enough scrubs, ABORT ABORT ABORT
 			break
 
-	return candidates		// Returns: The number of people who had the antagonist role set to yes, regardless of recomended_enemies, if that number is greater than recommended_enemies
-							//			recommended_enemies if the number of people with that role set to yes is less than recomended_enemies,
-							//			Less if there are not enough valid players in the game entirely to make recommended_enemies.
+	return candidates
+
 
 
 /datum/game_mode/proc/num_players()
@@ -293,27 +296,6 @@
 	for(var/mob/new_player/P in player_list)
 		if(P.client && P.ready)
 			. ++
-
-///////////////////////////////////
-//Keeps track of all living heads//
-///////////////////////////////////
-/datum/game_mode/proc/get_living_heads()
-	var/list/heads = list()
-	for(var/mob/living/carbon/human/player in mob_list)
-		if(player.stat!=2 && player.mind && (player.mind.assigned_role in command_positions))
-			heads += player.mind
-	return heads
-
-
-////////////////////////////
-//Keeps track of all heads//
-////////////////////////////
-/datum/game_mode/proc/get_all_heads()
-	var/list/heads = list()
-	for(var/mob/player in mob_list)
-		if(player.mind && (player.mind.assigned_role in command_positions))
-			heads += player.mind
-	return heads
 
 //////////////////////////
 //Reports player logouts//
@@ -368,3 +350,5 @@ proc/display_roundstart_logout_report()
 	for(var/mob/M in mob_list)
 		if(M.client && M.client.holder)
 			M << msg
+
+

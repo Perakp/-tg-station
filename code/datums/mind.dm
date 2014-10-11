@@ -37,8 +37,8 @@
 
 	var/memory
 
-	var/assigned_role
-	var/special_role
+	var/assigned_role 	//job of the player
+	var/special_role	//Last assigned antagonist role, if any
 
 	var/datum/job/assigned_job
 

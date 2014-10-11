@@ -451,7 +451,7 @@
 	// their information, but it is the only way (at least that I know of).
 	for(var/T in (typesof(/datum/game_mode) - /datum/game_mode))
 		var/datum/game_mode/M = new T()
-		if(M.config_tag && M.config_tag == mode_name)
+		if(M.name == mode_name)
 			return M
 		del(M)
 	return new /datum/game_mode/extended()
@@ -461,13 +461,13 @@
 	for(var/T in (typesof(/datum/game_mode) - /datum/game_mode))
 		var/datum/game_mode/M = new T()
 		//world << "DEBUG: [T], tag=[M.config_tag], prob=[probabilities[M.config_tag]]"
-		if(!(M.config_tag in modes))
+		if(!(M.name in modes))
 			del(M)
 			continue
-		if(probabilities[M.config_tag]<=0)
+		if(probabilities[M.name]<=0)
 			del(M)
 			continue
 		if(M.can_start())
-			runnable_modes[M] = probabilities[M.config_tag]
+			runnable_modes[M] = probabilities[M.name]
 			//world << "DEBUG: runnable_mode\[[runnable_modes.len]\] = [M.config_tag]"
 	return runnable_modes
