@@ -7,12 +7,16 @@
 	antag_flag = BE_MONKEY
 
 	required_players = 20
-	required_enemies = 1
-	recommended_enemies = 1
+	target_monkeys = -1
 
-	restricted_jobs = list("Cyborg", "AI")
 
-	var/carriers_to_make = 1
+/datum/antagonist/monkey
+	name = "infected monkey"
+	restricted_jobs = list("cyborg", "AI")
+
+
+/datum/antag_handler/monkey
+
 	var/list/carriers = list()
 
 	var/monkeys_to_win = 0
@@ -20,27 +24,8 @@
 
 	var/players_per_carrier = 30
 
-
-/datum/game_mode/monkey/pre_setup()
-	carriers_to_make = max(round(num_players()/players_per_carrier, 1), 1)
-
-	for(var/datum/mind/player in antag_candidates)
-		for(var/job in restricted_jobs)//Removing robots from the list
-			if(player.assigned_role == job)
-				antag_candidates -= player
-
-	for(var/j = 0, j < carriers_to_make, j++)
-		if (!antag_candidates.len)
-			break
-		var/datum/mind/carrier = pick(antag_candidates)
-		carriers += carrier
-		carrier.special_role = "monkey"
-		log_game("[carrier.key] (ckey) has been selected as a Jungle Fever carrier")
-		antag_candidates -= carrier
-
-	if(!carriers.len)
-		return 0
-	return 1
+/datum/antag_handler/monkey/calculate_target_num_of_antags()
+	target_num_of_antags = max(round(num_players()/players_per_carrier, 1), 1)
 
 
 /datum/game_mode/monkey/announce()
@@ -49,12 +34,12 @@
 				Monkeys: Ensure that your kind lives on! Rise up against your captors!</B>"
 
 
-/datum/game_mode/monkey/proc/greet_carrier(var/datum/mind/carrier)
-	carrier.current << "<B><span class = 'notice'>You are the Jungle Fever patient zero!!</B>"
-	carrier.current << "<b>You have been planted onto this station by the Animal Rights Consortium.</b>"
-	carrier.current << "<b>Soon the disease will transform you into an ape. Afterwards, you will be able spread the infection to others with a bite.</b>"
-	carrier.current << "<b>While your infection strain is undetectable by scanners, any other infectees will show up on medical equipment.</b>"
-	carrier.current << "<b>Your mission will be deemed a success if any of the live infected monkeys reach Centcom.</b>"
+/datum/antagonist/monkey/greet_antagonist(var/mob/carrier)
+	carrier << "<B><span class = 'notice'>You are the Jungle Fever patient zero!!</B>"
+	carrier << "<b>You have been planted onto this station by the Animal Rights Consortium.</b>"
+	carrier << "<b>Soon the disease will transform you into an ape. Afterwards, you will be able spread the infection to others with a bite.</b>"
+	carrier << "<b>While your infection strain is undetectable by scanners, any other infectees will show up on medical equipment.</b>"
+	carrier << "<b>Your mission will be deemed a success if any of the live infected monkeys reach Centcom.</b>"
 	return
 
 /datum/game_mode/monkey/post_setup()

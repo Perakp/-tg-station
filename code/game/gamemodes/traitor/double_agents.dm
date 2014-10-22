@@ -1,7 +1,10 @@
+/datum/game_mode
+	var/list/double_agents = list()
+	var/list/target_list = list()
+
 /datum/game_mode/traitor/double_agents
 	name = "double agents"
-	config_tag = "double_agents"
-	restricted_jobs = list("Cyborg", "AI", "Captain", "Head of Personnel", "Chief Medical Officer", "Research Director", "Chief Engineer", "Head of Security") // Human / Minor roles only.
+
 	required_players = 25
 	required_enemies = 5
 	recommended_enemies = 8
@@ -11,8 +14,10 @@
 	traitors_possible = 10 //hard limit on traitors if scaling is turned off
 	num_modifier = 6 // Six additional traitors
 
-	var/list/target_list = list()
+
 	var/list/late_joining_list = list()
+
+	exchange_blue = -1 // this should block double agents from getting the exchange objective
 
 /datum/game_mode/traitor/double_agents/announce()
 	world << "<B>The current game mode is - Double Agents!</B>"
@@ -20,11 +25,16 @@
 
 /datum/game_mode/traitor/double_agents/post_setup()
 	var/i = 0
-	for(var/datum/mind/traitor in traitors)
+	for(var/datum/mind/traitor in antagonists)
 		i++
-		if(i + 1 > traitors.len)
+		if(i + 1 > antagonists.len)
 			i = 0
-		target_list[traitor] = traitors[i + 1]
+		target_list[traitor] = antagonists[i + 1]
+	..()
+
+/datum/game_mode/traitor/double_agents/finalize_antagonists()
+	for(var/datum/mind/antagonist in antagonists)
+		forge_traitor_objectives(antagonist)
 	..()
 
 /datum/game_mode/traitor/double_agents/forge_traitor_objectives(var/datum/mind/traitor)
@@ -43,8 +53,6 @@
 		escape_objective.owner = traitor
 		traitor.objectives += escape_objective
 
-	else
-		..() // Give them standard objectives.
 	return
 
 /datum/game_mode/traitor/double_agents/add_latejoin_traitor(var/datum/mind/character)

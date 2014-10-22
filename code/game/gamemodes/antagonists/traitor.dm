@@ -1,6 +1,7 @@
 /* Traitor datum
  *
- * Mostly a carbon copy of antagonist
+ * Mostly a carbon copy of /datum/antagonist
+ *
  *
  */
 /datum/antagonist/traitor
@@ -10,7 +11,7 @@
 	if (istype(traitor.current, /mob/living/silicon))
 		add_law_zero(traitor.current)
 	else
-		equip_traitor(traitor.current)
+		return equip_traitor(traitor.current)
 	return
 
 /datum/antagonist/traitor/proc/add_law_zero(mob/living/silicon/ai/killer)
@@ -20,6 +21,7 @@
 	killer.set_zeroth_law(law, law_borg)
 	killer << "New law: 0. [law]"
 	give_codewords(killer)
+	return 1
 
 
 /datum/antagonist/traitor/proc/equip_traitor(mob/living/carbon/human/traitor_mob, var/safety = 0)
@@ -72,8 +74,7 @@
 
 			traitor_mob << "The Syndicate have cunningly disguised a Syndicate Uplink as your [R.name] [loc]. Simply enter the code \"[pda_pass]\" into the ringtone select to unlock its hidden features."
 			traitor_mob.mind.store_memory("<B>Uplink Passcode:</B> [pda_pass] ([R.name] [loc]).")
-	if(!safety)//If they are not a rev. Can be added on to.
-		give_codewords(traitor_mob)
+	give_codewords(traitor_mob)
 
 /datum/antagonist/traitor/proc/assign_exchange_role(var/datum/mind/owner, var/faction, var/datum/mind/target)
 
@@ -182,3 +183,20 @@
 	traitor_mob.mind.store_memory("<b>Code Response</b>: [syndicate_code_response]")
 
 	traitor_mob << "Use the code words in the order provided, during regular conversation, to identify other agents. Proceed with caution, however, as everyone is a potential foe."
+
+
+/datum/antagonist/traitor/print_antagonist(var/datum/mind/ply)
+	var/text
+	var/TC_uses = 0
+	var/uplink_true = 0
+	var/purchases = ""
+	for(var/obj/item/device/uplink/H in world_uplinks)
+		if(H && H.uplink_owner && H.uplink_owner==traitor.key)
+			TC_uses += H.used_TC
+			uplink_true=1
+			purchases += H.purchase_log
+	if(uplink_true)
+		text += " (used [TC_uses] TC) [purchases]"
+		if(TC_uses==0 && traitorwin)
+			text += "<BIG><IMG CLASS=icon SRC=\ref['icons/BadAss.dmi'] ICONSTATE='badass'></BIG>"
+	return text

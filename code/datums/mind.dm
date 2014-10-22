@@ -1096,7 +1096,7 @@
 	if(H)
 		qdel(H)
 
-
+// #todo: Fix these make_ procs
 /datum/mind/proc/make_AI_Malf()
 	if(!(src in ticker.mode.malf_ai))
 		ticker.mode.malf_ai += src

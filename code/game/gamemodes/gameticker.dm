@@ -123,17 +123,6 @@ var/round_start_time = 0
 	return 1
 
 
-/datum/controller/gameticker/proc/announce_mode()
-	if(hide_mode)
-		var/list/modes = list()
-		for (var/datum/game_mode/M in runnable_modes)
-			modes+=M.name
-		modes = sortList(modes)
-		world << "<B>The current game mode is - Secret!</B>"
-		world << "<B>Possibilities:</B> [english_list(modes)]"
-	else
-		mode.announce()
-
 // Creates the game mode from current settings, considering the requirements to start the game mode
 // TODO: clean this up. It shouldn't look like this.
 /datum/controller/gameticker/proc/create_gamemode()
@@ -160,6 +149,19 @@ var/round_start_time = 0
 			del(mode)
 			current_state = GAME_STATE_PREGAME
 			return 0
+
+
+/datum/controller/gameticker/proc/announce_mode()
+	if(hide_mode)
+		var/list/modes = list()
+		for (var/datum/game_mode/M in runnable_modes)
+			modes+=M.name
+		modes = sortList(modes)
+		world << "<B>The current game mode is - Secret!</B>"
+		world << "<B>Possibilities:</B> [english_list(modes)]"
+	else
+		mode.announce()
+
 
 
 
@@ -303,6 +305,11 @@ var/round_start_time = 0
 				robo.laws.show_laws(world)
 
 	mode.declare_completion()//To declare normal completion.
+
+	//calls auto_declare_completion_* for all modes
+	for(var/handler in typesof(/datum/game_mode/proc))
+		if (findtext("[handler]","auto_declare_completion_"))
+			call(mode, handler)()
 
 	//Print a list of antagonists to the server log
 	var/list/total_antagonists = list()

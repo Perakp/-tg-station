@@ -1,9 +1,7 @@
 /datum/game_mode/meteor
 	name = "meteor"
-	config_tag = "meteor"
 	var/const/meteordelay = 2000
 	var/nometeors = 1
-	required_players = 0
 
 
 /datum/game_mode/meteor/announce()
@@ -12,22 +10,13 @@
 
 
 /datum/game_mode/meteor/post_setup()
-//	defer_powernet_rebuild = 2//Might help with the lag
 	spawn(meteordelay)
 		nometeors = 0
 	..()
 
-
 /datum/game_mode/meteor/process()
 	if(nometeors) return
-	/*if(prob(80))
-		spawn()
-			dust_swarm("norm")
-	else
-		spawn()
-			dust_swarm("strong")*/
 	spawn() spawn_meteors(6)
-
 
 /datum/game_mode/meteor/declare_completion()
 	var/text

@@ -1,6 +1,7 @@
 /datum/game_mode
 	var/datum/mind/exchange_red
 	var/datum/mind/exchange_blue
+	var/traitor_name = "traitor" //or "double agent"
 
 /datum/game_mode/traitor
 	name = "traitor"
@@ -8,8 +9,6 @@
 
 	required_enemies = 1
 	recommended_enemies = 4
-
-	var/traitor_name = "traitor" //or "double agent"
 
 	var/traitors_possible = 4 //hard limit on traitors if scaling is turned off
 	var/num_modifier = 0 // Used for gamemodes, that are a child of traitor, that need more than the usual.
@@ -33,10 +32,11 @@
 		if (!antag_candidates.len)
 			break
 		var/datum/mind/traitor = pick(antag_candidates)
-		if(!(traitor in antagonists))
-			antagonists += traitor
-		traitors += 1
+		antagonists |= traitor
+		traitors |= traitor
 		traitor.special_role = traitor_name
+		var/datum/antagonist/traitor/t = new
+		traitor.antag_roles |= t
 		log_game("[traitor.key] (ckey) has been selected as a [traitor_name]")
 		antag_candidates.Remove(traitor)
 
@@ -83,65 +83,14 @@
 	character.make_Traitor()
 
 
+//This is called whenever a round ends
+/datum/game_mode/proc/auto_declare_completion_traitor()
 
+	declare_antagonists(traitors, traitor_name)
 
-/datum/game_mode/traitor/declare_completion()
-	if(traitors)
-		var/text = "<br><font size=3><b>The [traitor_name]s were:</b></font>"
-		for(var/datum/mind/traitor in traitors)
-			var/traitorwin = 1
-
-			text += printplayer(traitor)
-
-			var/TC_uses = 0
-			var/uplink_true = 0
-			var/purchases = ""
-			for(var/obj/item/device/uplink/H in world_uplinks)
-				if(H && H.uplink_owner && H.uplink_owner==traitor.key)
-					TC_uses += H.used_TC
-					uplink_true=1
-					purchases += H.purchase_log
-
-			var/objectives = ""
-			if(traitor.objectives.len)//If the traitor had no objectives, don't need to process this.
-				var/count = 1
-				for(var/datum/objective/objective in traitor.objectives)
-					if(objective.check_completion())
-						objectives += "<br><B>Objective #[count]</B>: [objective.explanation_text] <font color='green'><B>Success!</B></font>"
-						feedback_add_details("traitor_objective","[objective.type]|SUCCESS")
-					else
-						objectives += "<br><B>Objective #[count]</B>: [objective.explanation_text] <font color='red'>Fail.</font>"
-						feedback_add_details("traitor_objective","[objective.type]|FAIL")
-						traitorwin = 0
-					count++
-
-			if(uplink_true)
-				text += " (used [TC_uses] TC) [purchases]"
-				if(TC_uses==0 && traitorwin)
-					text += "<BIG><IMG CLASS=icon SRC=\ref['icons/BadAss.dmi'] ICONSTATE='badass'></BIG>"
-
-			text += objectives
-
-			var/special_role_text
-			if(traitor.special_role)
-				special_role_text = lowertext(traitor.special_role)
-			else
-				special_role_text = "antagonist"
-
-
-			if(traitorwin)
-				text += "<br><font color='green'><B>The [special_role_text] was successful!</B></font>"
-				feedback_add_details("traitor_success","SUCCESS")
-			else
-				text += "<br><font color='red'><B>The [special_role_text] has failed!</B></font>"
-				feedback_add_details("traitor_success","FAIL")
-
-			text += "<br>"
-
-		text += "<br><b>The code phrases were:</b> <font color='red'>[syndicate_code_phrase]</font><br>\
-		<b>The code responses were:</b> <font color='red'>[syndicate_code_response]</font><br>"
-		world << text
-
+	if(traitors.len && syndicate_code_phrase)
+		world << "<br><b>The code phrases were:</b> <font color='red'>[syndicate_code_phrase]</font><br>\
+			<b>The code responses were:</b> <font color='red'>[syndicate_code_response]</font><br>"
 	return 1
 
 

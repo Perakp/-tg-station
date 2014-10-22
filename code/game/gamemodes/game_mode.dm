@@ -16,38 +16,72 @@
 	var/votable = 1
 	var/probability = 1
 
+	var/end_round = 0 // Triggers round end
+
 	//Antag selection
-	var/list/datum/mind/antagonists = list()	// List of antagonists
-	var/list/datum/mind/antag_candidates = list()	// List of possible starting antags goes here
 
 	//Requirements for selecting this gamemode
 	var/required_players = 1 // you can always play alone, but don't start a game with no players
-	var/required_enemies = 0
-	var/recommended_enemies = 0
+
+	// These variables are used at round start.
+	// target_antags = -1 is for antag scaling.
+	var/target_traitors = 0
+	var/target_changelings = 0
+	var/target_double_agents = 0
+	var/target_wizards = 0
+	var/target_blobs = 0
+	var/target_monkeys = 0
+
+	var/starting_rev = 0
+	var/starting_cult = 0
+	var/starting_malf = 0 // 1 for malf, 3 for triumvirate
+	var/starting_alien = 0
+
+	// antag handlers hallelujah.
+	var/list/datum/antag_handler/antag_handlers = list()
+	var/datum/antag_handler/traitor/traitor_handler = new
+	var/datum/antag_handler/changeling/changeling_handler = new
+	var/datum/antag_handler/wizard/wizard_handler = new
+	var/datum/antag_handler/cult/cult_handler = new
+	var/datum/antag_handler/rev/revolution_handler = new
+	var/datum/antag_handler/operative/nukeops_handler = new
+	var/datum/antag_handler/blob/blob_handler = new
+	var/datum/antag_handler/malf/malf_handler = new
+	var/datum/antag_handler/monkey/monkey_handler = new
 
 	//Intercept report wait limits
 	var/const/waittime_l = 600
 	var/const/waittime_h = 1800 // started at 1800
 
-	//Some gamemode specific stuff
-	var/shuttleCanBeCalled= 1 //Can the shuttle be called
+	//Some gamemode specific stuff > #todo: move these to their antag_handlers
+	var/shuttleCanBeCalled= 1 //Can the shuttle be called. Redundant copy of shuttle variable
 	var/allowMalfTakeover = 0 //Can the round end in malfunction takeover
 	var/station_was_nuked = 0 //see nuclearbomb.dm and malfunction.dm
 	var/explosion_in_progress = 0 //sit back and relax
 	var/datum/mind/sacrifice_target = null
 
-	// Tracking the numbers of specific antags.
-	var/traitors=0
-	var/changelings=0
-	var/traitorlings=0
-	var/wizards=0
-	var/blobs=0
-	var/ninjas=0
-	var/nukeops=0
-	var/revolutionaries=0
-	var/cultists=0
 
-/datum/game_mode/proc/announce() //to be calles when round starts
+
+// Need a list to loop through, and individual handles for fast access.
+/datum/game_mode/proc/init_antag_handlers()
+	antag_handlers += traitor_handler
+	antag_handlers += changeling_handler
+	antag_handlers += wizard_handler
+	antag_handlers += cult_handler
+	antag_handlers += revolution_handler
+	antag_handlers += nukeops_handler
+	antag_handlers += blob_handler
+	antag_handlers += malf_handler
+	antag_handlers += monkey_handler
+	traitor_handler.target_number_of_antag = target_traitors
+	changeling_handler.target_number_of_antag = target_changelings
+	wizard_handler.target_number_of_antag = target_wizards
+	double_agent_handler.target_number_of_antag = target_double_agents
+	blob_handler.target_number_of_antag = target_blobs
+	malf_handler.target_number_of_antag = starting_malf
+	monkey_handler.target_number_of_antag = target_monkeys
+
+/datum/game_mode/proc/announce() //to be called when round starts
 	world << "<B>Notice</B>: [src] did not define announce()"
 
 
@@ -61,11 +95,16 @@
 	if(!Debug2)
 		if(playerC < required_players)
 			return 0
-	antag_candidates = get_players_for_role(antag_flag)
+	init_antag_handlers()
+	var/enough_antag_candidates = 1
+	for(var/datum/antag_handler/a in antag_handlers)
+		if(enough_antag_candidates)
+			a.get_candidates()
+			enough_antag_candidates = a.has_enough_candidates()
+		else
+			break
 	if(!Debug2)
-		if(antag_candidates.len < required_enemies)
-			return 0
-		return 1
+		return enough_antag_candidates
 	else
 		world << "<span class='notice'>DEBUG: GAME STARTING WITHOUT PLAYER NUMBER CHECKS, THIS WILL PROBABLY BREAK SHIT."
 		return 1
@@ -74,19 +113,30 @@
 
 ///Attempts to select players for special roles the mode might have.
 /datum/game_mode/proc/select_antagonists()
+	for(var/datum/antag_handler/a in antag_handlers)
+		a.get_antags()
 	return 1
 
+/datum/game_mode/proc/finalize_antagonists()
+	var/list/datum/mind/handled_antagonists = list()
+	for(var/datum/antag_handler/a in antag_handlers)
+		for(var/datum/mind/antagonist in a.antags)
+			if(antagonist in handled_antagonists)
+				continue
+			for(var/datum/antagonist/antagonist_datum in antagonist.antag_roles)
+				antagonist_datum.create_objectives(antagonist)
+				antagonist_datum.equip_antagonist(antagonist)
+				antagonist_datum.greet_antagonist(antagonist.current)
+			antagonist.print_objectives(antagonist.current)
+			handled_antagonists |= antagonist
+		a.on_round_start()
 
 // post_setup()
 // Everyone should now be on the station and have their normal gear.
 // This is the place to give the special roles extra things
 /datum/game_mode/proc/post_setup(var/send_intercept=1)
-	for(var/datum/mind/antagonist in antagonists)
-		for(var/datum/antagonist/antagonist_datum in antagonist.antag_roles)
-			antagonist_datum.create_objectives(antagonist)
-			antagonist_datum.equip_antagonist(antagonist)
-			antagonist_datum.greet_antagonist(antagonist)
 
+	finalize_antagonists()
 
 	spawn (ROUNDSTART_LOGOUT_REPORT_TIME)
 		display_roundstart_logout_report()
@@ -105,39 +155,30 @@
 
 	return 1
 
-///make_antag_chance()
-///Handles late-join antag assignments
+// make_antag_chance()
+// Handles late-join antag assignments
+// They already have a job and everything at this point
 /datum/game_mode/proc/make_antag_chance(var/mob/living/carbon/human/character)
 	return
 
-///process()
-///Called by the gameticker
+//process()
+//Called by the gameticker
 /datum/game_mode/proc/process()
 	return 0
 
 
 /datum/game_mode/proc/check_finished() //to be called by ticker
-	if(emergency_shuttle.location==2 || station_was_nuked)
+	if(emergency_shuttle.location==2 || station_was_nuked || end_round)
 		return 1
-	return 0
-
-/datum/mind/proc/declare_antagonist_completion()
-	#TODO
 	return 0
 
 
 /datum/game_mode/proc/declare_completion()
-	for(var/datum/mind/antagonist in antagonists)
-		antagonist.declare_antagonist_completion()
-	if(revolutionaries.len)
-		declare_revolution()
-	if(cultists.len)
-		declare_cult()
-	if(nukeops)
-		declare_ops()
-	if(gang)
-		declare_gang()
 
+	for(var/datum/antag_handler/a in antag_handlers)
+		a.declare_completion()
+
+//	declare_antagonists(antagonists, "antagonist")
 
 	var/clients = 0
 	var/surviving_humans = 0
@@ -242,53 +283,6 @@
 	priority_announce("Summary downloaded and printed out at all communications consoles.", "Enemy communication intercept. Security Level Elevated.", 'sound/AI/intercept.ogg')
 	if(security_level < SEC_LEVEL_BLUE)
 		set_security_level(SEC_LEVEL_BLUE)
-
-
-
-// Returns a list of people who had the antagonist role set to yes in their preferences,
-// could be more or less than recommended_enemies.
-/datum/game_mode/proc/get_players_for_role(var/role)
-	var/list/players = list() // List of players that are ready
-	var/list/candidates = list() // List of players ready for the role
-	var/list/drafted = list() // List of players drafted for the role
-	var/datum/mind/applicant = null
-
-	var/roletext
-	switch(role)
-		if(BE_CHANGELING)	roletext="changeling"
-		if(BE_TRAITOR)		roletext="traitor"
-		if(BE_OPERATIVE)	roletext="operative"
-		if(BE_WIZARD)		roletext="wizard"
-		if(BE_REV)			roletext="revolutionary"
-		if(BE_GANG)			roletext="gangster"
-		if(BE_CULTIST)		roletext="cultist"
-		if(BE_MONKEY)		roletext="monkey"
-
-	for(var/mob/new_player/player in player_list)
-		if(player.client && player.ready)
-			if(!jobban_isbanned(player, "Syndicate") && !jobban_isbanned(player, roletext))
-				players += player
-
-	players = shuffle(players)
-
-	for(var/mob/new_player/player in players)
-		if(player.client.prefs.be_special & role)
-			candidates += player.mind
-
-	if(candidates.len < recommended_enemies)
-		drafted = players - candidates
-
-	while(candidates.len < recommended_enemies)
-		if(drafted.len > 0)
-			applicant = pick(drafted)
-			if(applicant)
-				candidates += applicant
-				drafted.Remove(applicant)
-		else		// Not enough scrubs, ABORT ABORT ABORT
-			break
-
-	return candidates
-
 
 
 /datum/game_mode/proc/num_players()
