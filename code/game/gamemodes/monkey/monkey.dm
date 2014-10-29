@@ -16,7 +16,8 @@
 
 
 /datum/antag_handler/monkey
-
+	antag_type_path = /datum/antagonist/monkey
+	preference_flag = BE_MONKEY
 	var/list/carriers = list()
 
 	var/monkeys_to_win = 0
@@ -42,19 +43,15 @@
 	carrier << "<b>Your mission will be deemed a success if any of the live infected monkeys reach Centcom.</b>"
 	return
 
-/datum/game_mode/monkey/post_setup()
-	for(var/datum/mind/carriermind in carriers)
-		greet_carrier(carriermind)
-		ape_infectees += carriermind
-
-		var/datum/disease/D = new /datum/disease/transformation/jungle_fever
-		D.hidden = list(1,1)
-		D.holder = carriermind.current
-		D.affected_mob = carriermind.current
-		carriermind.current.viruses += D
+/datum/antagonist/monkey/equip_antagonist(var/datum/mind/antagonist)
+	var/datum/disease/D = new /datum/disease/transformation/jungle_fever
+	D.hidden = list(1,1)
+	D.holder = antagonist.current
+	D.affected_mob = antagonist.current
+	antagonist.current.viruses += D
 	..()
 
-/datum/game_mode/monkey/proc/check_monkey_victory()
+/datum/antag_handler/monkey/proc/check_monkey_victory()
 	for(var/mob/living/carbon/monkey/M in living_mob_list)
 		if (M.has_disease(/datum/disease/transformation/jungle_fever))
 			var/area/A = get_area(M)
@@ -65,16 +62,16 @@
 	else
 		return 1
 
-/datum/game_mode/proc/add_monkey(datum/mind/monkey_mind)
-	ape_infectees |= monkey_mind
-	monkey_mind.special_role = "Infected Monkey"
+/datum/antag_handler/monkey/proc/add_monkey(datum/mind/monkey_mind)
+	antags |= monkey_mind
+	monkey_mind.special_role = "infected Monkey"
 
-/datum/game_mode/proc/remove_monkey(datum/mind/monkey_mind)
-	ape_infectees.Remove(monkey_mind)
+/datum/antag_handler/monkey/proc/remove_monkey(datum/mind/monkey_mind)
+	antags.Remove(monkey_mind)
 	monkey_mind.special_role = null
 
 
-/datum/game_mode/monkey/declare_completion()
+/datum/antag_handler/monkey/declare_completion()
 	if(!check_monkey_victory())
 		feedback_set_details("round_end_result","win - monkey win")
 		feedback_set("round_end_result",escaped_monkeys)

@@ -94,7 +94,7 @@
 /datum/disease/transformation/jungle_fever/do_disease_transformation(var/mob/living/carbon/affected_mob)
 	if(!ismonkey(affected_mob))
 		affected_mob.monkeyize(TR_KEEPITEMS | TR_KEEPIMPLANTS | TR_KEEPDAMAGE | TR_KEEPVIRUS | TR_KEEPSE)
-		ticker.mode.add_monkey(affected_mob.mind)
+		ticker.mode.monkey_handler.add_monkey(affected_mob.mind)
 
 /datum/disease/transformation/jungle_fever/stage_act()
 	..()
@@ -111,7 +111,7 @@
 				affected_mob.say(pick("Eeek, ook ook!", "Eee-eeek!", "Eeee!", "Ungh, ungh."))
 
 /datum/disease/transformation/jungle_fever/cure()
-	ticker.mode.remove_monkey(affected_mob.mind)
+	ticker.mode.monkey_handler.remove_monkey(affected_mob.mind)
 	..()
 
 

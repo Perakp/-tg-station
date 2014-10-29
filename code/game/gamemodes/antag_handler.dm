@@ -117,9 +117,5 @@
 	antag_type_path = /datum/antagonist/gang
 	preference_flag = BE_GANG
 
-/datum/antag_handler/monkey
-	antag_type_path = /datum/antagonist/monkey
-	preference_flag = BE_MONKEY
-
 
 
